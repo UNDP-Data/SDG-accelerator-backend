@@ -1,1 +1,0 @@
-# SDG-accelerator-backend
