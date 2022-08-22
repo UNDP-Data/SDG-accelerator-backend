@@ -19,9 +19,9 @@ from tqdm import tqdm
 
 
 def allowed_file(filename):
-    allowed_extentions = {'pdf'}
+    allowed_extensions = {'pdf'}
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in allowed_extentions
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 
 def load(fn, upload_folder):
