@@ -30,7 +30,7 @@ def extract(name):
     text = anlp.load(name, app.config["UPLOAD_FOLDER"], verbose=True)
     text = anlp.clean(text)
     print('tokenization...')
-    insights = anlp.insight(text, nlp)  # use a global instance
+    insights = anlp.get_insights(text, nlp)  # use a global instance
     return jsonify(insights)
 
 

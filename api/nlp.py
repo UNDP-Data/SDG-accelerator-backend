@@ -58,6 +58,19 @@ def load(filename: str, upload_folder: str, verbose: bool = False) -> str:
 
 
 def clean(text: str) -> str:
+    """
+    Cleans up the input text by removing repetitions, new line characters etc.
+
+    Parameters
+    ----------
+    text: str
+        input text to be processed.
+
+    Returns
+    -------
+    text: str
+        cleaned input text.
+    """
     text = re.sub(r'[.]{2,}', '', text)
     text = re.sub(r'[ ]+', ' ', text)
     # text = re.sub(r'\d{2} \d\.\d+', '\n', text)
@@ -67,32 +80,24 @@ def clean(text: str) -> str:
     return text
 
 
-def rule3(text):
-    doc = nlp(text)
-    sent = []
-    for token in doc:
-        # look for prepositions
-        if token.pos_=='ADP':
-            phrase = ''
-            # if its head word is a noun
-            if token.head.pos_=='NOUN':
-                # append noun and preposition to phrase
-                phrase += token.head.text
-                phrase += ' '+token.text
-                # check the nodes to the right of the preposition
-                for right_tok in token.rights:
-                    # append if it is a noun or proper noun
-                    if (right_tok.pos_ in ['NOUN','PROPN']):
-                        phrase += ' '+right_tok.text
-                if len(phrase)>2:
-                    sent.append(phrase)
-    return sent
-
-
-def search(doc: spacy.tokens.doc.Doc, required: Iterable[str], optional: Iterable[str], stoppers: Iterable[str]) -> int:
+def search_sentence(doc: spacy.tokens.doc.Doc, required: Iterable[str], optional: Iterable[str], stoppers: Iterable[str]) -> int:
     """
     Searches a document to determine if the required terms are present in the text.
     Likewise, at least one optional term and none of the stoppers must be present.
+
+    doc: spacy.tokens.doc.Doc
+        input document from a spacy model.
+    required: Iterable[str]
+        sequence of strings that all must appear in the document.
+    optional: Iterable[str]
+        sequence of strings of which at least one must appear in the document.
+    stoppers: Iterable[str]
+        sequence of strings of which none must appear in the document.
+
+    Returns
+    -------
+    i: int
+        integer index of the first matching sentence in the doc.
     """
     for i, sent in enumerate(doc.sents):
         st = [s.text.lower() for s in sent]
@@ -106,18 +111,42 @@ def search(doc: spacy.tokens.doc.Doc, required: Iterable[str], optional: Iterabl
             return i
 
 
-def entities(doc: spacy.tokens.doc.Doc, verbose: bool = False) -> List[int]:
-    ents = list()
+def find_indices(doc: spacy.tokens.doc.Doc, verbose: bool = False) -> List[int]:
+    """
+    Extracts indices of matchning sentences for each SDG Goal.
+
+    doc: spacy.tokens.doc.Doc
+        input document from a spacy model.
+    verbose: bool, optional
+        flag to indicate if to print any details.
+
+    Returns
+    -------
+    indices: List[int]
+        list of indices that indicating matching sentences, one per SDG.
+    """
+    indices = list()
     sdg2queries = json.load(open_binary('api', 'queries.json'))
     if verbose: print('finding entries...')
     for sdg in tqdm(range(1, 18)):
-        matches = search(doc, **sdg2queries[f'sdg_{sdg}'])
-        ents.append(matches)
-    if verbose: print(f'done:{ents}')
-    return ents
+        index = search_sentence(doc, **sdg2queries[f'sdg_{sdg}'])
+        indices.append(index)
+    if verbose: print(f'Found: {indices}')
+    return indices
 
 
 def summarise(doc: spacy.tokens.doc.Doc) -> List[str]:
+    """
+    Summarises a doc by extracting sentences with most frequent keywords.
+
+    doc: spacy.tokens.doc.Doc
+        input document from a spacy model.
+
+    Returns
+    -------
+    summaries: List[str]
+        list of summary sentences from the doc.
+    """
     keywords = list()
     pos_tags = {'PROPN', 'ADJ', 'NOUN', 'VERB'}
     for token in doc:
@@ -136,31 +165,44 @@ def summarise(doc: spacy.tokens.doc.Doc) -> List[str]:
             if token.text in freq_word.keys():
                 sent_strength[sent] = sent_strength.get(sent, 0) + freq_word[token.text]
 
-    summarized_sentences = nlargest(3, sent_strength, key=sent_strength.get)
-    final_sentences = [w.text for w in summarized_sentences]
-    return final_sentences
+    key_sentences = nlargest(3, sent_strength, key=sent_strength.get)
+    summaries = [sent.text for sent in key_sentences]
+    return summaries
 
 
-def insight(text: str, nlp) -> Dict[str, List[str]]:
+def get_insights(text: str, nlp) -> Dict[str, List[str]]:
+    """
+    Returns insights for a text by providing summaries per each matching SDG.
+
+    text: str
+        input text to be analysed.
+    nlp: spacy
+        an English language model from spacy.
+
+    Returns
+    -------
+    sdg2insights: Dict[str, List[str]]
+        mapping from sdg names to a list of summary sentences.
+    """
     doc = nlp(text)
-    pos = entities(doc, verbose=True)
+    indices = find_indices(doc, verbose=True)
     sdg2insights = dict()
-    sents = list()
-    for i in tqdm(range(len(pos)-1)):
+    sentences = list()
+    for i in tqdm(range(len(indices)-1)):
         label = f'Goal {i+1}'
-        start = pos[i]
+        start = indices[i]
         if start is None:
             continue
 
-        end = pos[i+1] if (pos[i+1] is not None and pos[i] < pos[i+1]) else start + 50
+        end = indices[i+1] if (indices[i+1] is not None and indices[i] < indices[i+1]) else start + 50
         if end is None:
             continue
 
         for idx, sent in enumerate(doc.sents):
             if start <= idx <= end:
-                sents.append(sent.text)
+                sentences.append(sent.text)
 
-        text = ' '.join(sents)  # sensitive to how texts are joined
+        text = ' '.join(sentences)  # sensitive to how texts are joined
         doc = nlp(text)
         sdg2insights[label] = summarise(doc)
     return sdg2insights
