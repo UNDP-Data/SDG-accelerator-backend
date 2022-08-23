@@ -1,62 +1,70 @@
 """
-This modules defines routines for natural language processing as part of the
+This module defines routines for natural language processing as part of the
 SDG Diagnostic Simulator API.
 """
 
 # standard library
+import os
 import re
-from string import punctuation
+import json
+from typing import Iterable, List, Dict
 from collections import Counter
 from heapq import nlargest
+from importlib.resources import open_binary
 
 # nlp
 import pdfplumber
 import spacy
-from spacy.lang.en.stop_words import STOP_WORDS
 
 # utils
 from tqdm import tqdm
 
 
-def allowed_file(filename):
+def allowed_file(filename: str) -> bool:
+    """
+    Checks if a filename is valid .pdf document.
+    """
     allowed_extensions = {'pdf'}
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    extension = filename.rsplit('.', 1)[-1].lower()
+    return '.' in filename and extension in allowed_extensions
 
 
-def load(fn, upload_folder):
-    print(f'loading file...')
-    #urllib.request.urlretrieve(path, f"{cnt}.pdf")
-    txt, no = 'start', 0
-    text = ''
-    with pdfplumber.open(fn) as pdf:
-        while txt != '':
+def load(filename: str, upload_folder: str, verbose: bool = False) -> str:
+    """
+    Loads a .pdf document, extracts text and saves it to the disk.
+    """
+    if verbose: print(f'loading file...')
+    filepath_in = os.path.join(upload_folder, filename)
+    filepath_out = os.path.join(upload_folder, re.sub('\.pdf$', '.txt', filename))
+    texts = list()
+
+    # reading the file page by page
+    with pdfplumber.open(filepath_in) as pdf:
+        for page in pdf.pages:
             try:
-                page = pdf.pages[no]
-                text += page.extract_text()
-                no += 1
-                #print('.', end='')
+                text = page.extract_text()
+                texts.append(text)
             except Exception as e:
                 print(e)
-                break
 
-    print('writting...')
-    #print(text)
-    out = upload_folder + '/text.txt'
-    with open(out, 'w') as textfile:
-        textfile.write(text)
+    if verbose: print('writting...')
+    text = ' '.join(texts)  # always a string but may be an empty one
+
+    # saving the file on disk
+    with open(filepath_out, 'w') as file:
+        file.write(text)
+
+    return text
 
 
-def clean(fn):
-    with open(fn, 'r') as f:
-        r = f.read()
-        r = re.sub(r'[.]{2,}','',r)
-        r = re.sub(r'[ ]+',' ',r)
-        ##r = re.sub(r'\d{2} \d\.\d+','\n',r)
-        r = re.sub(r'cid:\d+','\n',r)
-        r = re.sub(r'\n',' ',r)
-        ##r = re.sub(r'\d+.\d+\W+Goal \d+:','\nGoal: ',r)
-        return r
+def clean(text: str) -> str:
+    text = re.sub(r'[.]{2,}', '', text)
+    text = re.sub(r'[ ]+', ' ', text)
+    # text = re.sub(r'\d{2} \d\.\d+', '\n', text)
+    text = re.sub(r'cid:\d+', '\n', text)
+    text = re.sub(r'\n', ' ', text)
+    # text = re.sub(r'\d+.\d+\W+Goal \d+:', '\nGoal: ', text)
+    return text
 
 
 def rule3(text):
@@ -81,97 +89,78 @@ def rule3(text):
     return sent
 
 
-def search(doc, words, maybe, stop):
+def search(doc: spacy.tokens.doc.Doc, required: Iterable[str], optional: Iterable[str], stoppers: Iterable[str]) -> int:
+    """
+    Searches a document to determine if the required terms are present in the text.
+    Likewise, at least one optional term and none of the stoppers must be present.
+    """
     for i, sent in enumerate(doc.sents):
         st = [s.text.lower() for s in sent]
 
-        if all([w in st for w in words]) and \
-        any([m in st for m in maybe]) and \
-        not any([s in st for s in stop]) and \
-        len(st)<100:
-            #print(i,'=>', sent)
+        # checking the conditions one by one
+        c1 = all([w in st for w in required])
+        c2 = any([m in st for m in optional])
+        c3 = not any([s in st for s in stoppers])
+        c4 = len(st) < 100
+        if all([c1, c2, c3, c4]):
             return i
 
 
-def entities(d):
-    ent = []
-    query = [[['poverty','all'], ['no','zero','end','goal','progress'], ['conclusion']],
-        [['hunger','food','security'], ['no','zero','end','goal'], ['conclusion','annexes']],
-        [['ensure','healthy','lives'], ['promote'], ['conclusion','annexes']],
-        [['ensure','quality','education'], ['promote'], ['conclusion','annexes']],
-        [['gender','equality'], ['women'], ['conclusion','annexes']],
-        [['water','sanitation'], ['ensure'], ['conclusion','annexes']],
-        [['modern','energy'], ['ensure'], ['conclusion','annexes']],
-        [['economic','growth'], ['promote'], ['conclusion','annexes']],
-        [['resilient','infrastructure'], ['promote'], ['conclusion','annexes']],
-        [['reduce','inequality'], ['countries'], ['conclusion','annexes']],
-        [['human','settlements'], ['safe'], ['conclusion','annexes']],
-        [['consumption','production'], ['pattern'], ['conclusion','annexes']],
-        [['climate','change'], ['combat'], ['conclusion','annexes']],
-        [['oceans','seas','marines'], ['resources'], ['conclusion','annexes']],
-        [['ecosystems','forests'], ['protect'], ['conclusion','annexes']],
-        [['justice','societies'], ['promote'], ['conclusion','annexes']],
-        [['revitalize','partnership'], ['development'], ['conclusion','annexes']]]
-    print('finding entries...')
-    for q in tqdm(query):
-        ent.append(search(d, q[0], q[1], q[2]))
-    print(f'done:{ent}')
-    return ent
+def entities(doc: spacy.tokens.doc.Doc, verbose: bool = False) -> List[int]:
+    ents = list()
+    sdg2queries = json.load(open_binary('api', 'queries.json'))
+    if verbose: print('finding entries...')
+    for sdg in tqdm(range(1, 18)):
+        matches = search(doc, **sdg2queries[f'sdg_{sdg}'])
+        ents.append(matches)
+    if verbose: print(f'done:{ents}')
+    return ents
 
 
-def summ(d):
-    doc = nlp(d)
-    keyword = []
-    stopwords = list(STOP_WORDS)
-    pos_tag = ['PROPN', 'ADJ', 'NOUN', 'VERB']
+def summarise(doc: spacy.tokens.doc.Doc) -> List[str]:
+    keywords = list()
+    pos_tags = {'PROPN', 'ADJ', 'NOUN', 'VERB'}
     for token in doc:
-        if(token.text in stopwords or token.text in punctuation):
-            continue
-        if(token.pos_ in pos_tag):
-            keyword.append(token.text)
-    freq_word = Counter(keyword)
+        if not token.is_stop and not token.is_punct and token.pos_ in pos_tags:
+            keywords.append(token.text)
+    # stopping early
+    if len(keywords) == 0:
+        return list()
 
-    max_freq = Counter(keyword).most_common(1)[0][1]
-    for word in freq_word.keys():
-        freq_word[word] = (freq_word[word]/max_freq)
-    freq_word.most_common(5)
-
-    sent_strength={}
+    freq_word = Counter(keywords)
+    max_freq = max(freq_word.values())
+    freq_word = {k: v / max_freq for k, v in freq_word.items()}
+    sent_strength = dict()
     for sent in doc.sents:
-        for word in sent:
-            if word.text in freq_word.keys():
-                if sent in sent_strength.keys():
-                    sent_strength[sent]+=freq_word[word.text]
-                else:
-                    sent_strength[sent]=freq_word[word.text]
+        for token in sent:
+            if token.text in freq_word.keys():
+                sent_strength[sent] = sent_strength.get(sent, 0) + freq_word[token.text]
 
     summarized_sentences = nlargest(3, sent_strength, key=sent_strength.get)
-    # summary
-    final_sentences = [ w.text for w in summarized_sentences ]
-    #summary = ' '.join(final_sentences)
-    #print(summary)
+    final_sentences = [w.text for w in summarized_sentences]
     return final_sentences
 
 
-def insight(d):
-    global nlp
-    ins = {}
-    pos = entities(d)
-    nlp = spacy.load("en_core_web_sm")
+def insight(text: str, nlp) -> Dict[str, List[str]]:
+    doc = nlp(text)
+    pos = entities(doc, verbose=True)
+    sdg2insights = dict()
+    sents = list()
     for i in tqdm(range(len(pos)-1)):
         label = f'Goal {i+1}'
-        start = pos[i] if pos[i] is not None else None
-        end = pos[i+1] if (pos[i+1] is not None and pos[i] is not None and pos[i]<pos[i+1]) else pos[i]+50 if pos[i] is not None else None
-        sl = ""
-        if start is not None and end is not None:
-            for j, s in enumerate(d.sents):
-                if j>=start and j<=end:
-                    sl += s.text
-        try:
-            if label in ins:
-                ins[label] += summ(sl)
-            else:
-                ins[label] = summ(sl)
-        except Exception as e:
-            print(e)
-    return ins
+        start = pos[i]
+        if start is None:
+            continue
+
+        end = pos[i+1] if (pos[i+1] is not None and pos[i] < pos[i+1]) else start + 50
+        if end is None:
+            continue
+
+        for idx, sent in enumerate(doc.sents):
+            if start <= idx <= end:
+                sents.append(sent.text)
+
+        text = ' '.join(sents)  # sensitive to how texts are joined
+        doc = nlp(text)
+        sdg2insights[label] = summarise(doc)
+    return sdg2insights

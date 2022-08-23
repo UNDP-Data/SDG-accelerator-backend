@@ -19,21 +19,19 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = '/tmp'
 app.url_rule_class = lambda path, **options: Rule('/nlp' + path, **options)
 
+# spacy model
+nlp = spacy.load('en_core_web_sm', disable=['ner', 'parser'])
+nlp.max_length = 2e6
+nlp.add_pipe('sentencizer')
 
 ################
 @app.route('/extract/<name>')
 def extract(name):
-    nlp = spacy.load("en_core_web_sm", disable=['tagger','ner','parser'])
-    nlp.max_length=2e6
-    nlp.add_pipe('sentencizer')
-
-    fn = app.config["UPLOAD_FOLDER"]+'/'+name
-    anlp.load(fn, app.config["UPLOAD_FOLDER"])
-    fn = app.config["UPLOAD_FOLDER"]+'/text.txt'
-    r = anlp.clean(fn)
+    text = anlp.load(name, app.config["UPLOAD_FOLDER"], verbose=True)
+    text = anlp.clean(text)
     print('tokenization...')
-    doc = nlp(r)
-    return(jsonify(anlp.insight(doc)))
+    insights = anlp.insight(text, nlp)  # use a global instance
+    return jsonify(insights)
 
 
 ################
@@ -60,6 +58,6 @@ def upload_file():
             return redirect(url_for('extract', name=filename))
     return render_template('upload.html')
 
+
 if __name__=='__main__':
-    #nlp = spacy.load("en_core_web_sm")
     app.run(debug=True, port=8055)

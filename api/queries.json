@@ -1,0 +1,233 @@
+{
+  "sdg_1": {
+    "required": [
+      "poverty",
+      "all"
+    ],
+    "optional": [
+      "no",
+      "zero",
+      "end",
+      "goal",
+      "progress"
+    ],
+    "stoppers": [
+      "conclusion"
+    ]
+  },
+  "sdg_2": {
+    "required": [
+      "hunger",
+      "food",
+      "security"
+    ],
+    "optional": [
+      "no",
+      "zero",
+      "end",
+      "goal"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_3": {
+    "required": [
+      "ensure",
+      "healthy",
+      "lives"
+    ],
+    "optional": [
+      "promote"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_4": {
+    "required": [
+      "ensure",
+      "quality",
+      "education"
+    ],
+    "optional": [
+      "promote"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_5": {
+    "required": [
+      "gender",
+      "equality"
+    ],
+    "optional": [
+      "women"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_6": {
+    "required": [
+      "water",
+      "sanitation"
+    ],
+    "optional": [
+      "ensure"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_7": {
+    "required": [
+      "modern",
+      "energy"
+    ],
+    "optional": [
+      "ensure"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_8": {
+    "required": [
+      "economic",
+      "growth"
+    ],
+    "optional": [
+      "promote"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_9": {
+    "required": [
+      "resilient",
+      "infrastructure"
+    ],
+    "optional": [
+      "promote"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_10": {
+    "required": [
+      "reduce",
+      "inequality"
+    ],
+    "optional": [
+      "countries"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_11": {
+    "required": [
+      "human",
+      "settlements"
+    ],
+    "optional": [
+      "safe"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_12": {
+    "required": [
+      "consumption",
+      "production"
+    ],
+    "optional": [
+      "pattern"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_13": {
+    "required": [
+      "climate",
+      "change"
+    ],
+    "optional": [
+      "combat"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_14": {
+    "required": [
+      "oceans",
+      "seas",
+      "marines"
+    ],
+    "optional": [
+      "resources"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_15": {
+    "required": [
+      "ecosystems",
+      "forests"
+    ],
+    "optional": [
+      "protect"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_16": {
+    "required": [
+      "justice",
+      "societies"
+    ],
+    "optional": [
+      "promote"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  },
+  "sdg_17": {
+    "required": [
+      "revitalize",
+      "partnership"
+    ],
+    "optional": [
+      "development"
+    ],
+    "stoppers": [
+      "conclusion",
+      "annexes"
+    ]
+  }
+}
